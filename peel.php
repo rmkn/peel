@@ -6,7 +6,7 @@
  *
  * PHP Version 5
  *
- * @version 2014-07-29.1
+ * @version 2014-09-10.1
  */
 
 // デバッグ用
@@ -72,20 +72,17 @@ abstract class Peel
      *
      * @param string $paramName    パラメータ名
      * @param string $defaultValue デフォルト値
+     * @param string $force        POST時にQUERY_STRINGから取得する場合はtrue
      *
      * @return string パラメータ値。存在しない場合はデフォルト値
      */
-    protected function getParam($paramName, $defaultValue = null)
+    protected function getParam($paramName, $defaultValue = null, $force = false)
     {
-        // POST以外は$_GETから取得する
-        switch ($_SERVER['REQUEST_METHOD']) {
-        case 'POST':
-            $res = isset($_POST[$paramName]) ? $_POST[$paramName] : $defaultValue;
-            break;
-        default:
-            $res = isset($_GET[$paramName]) ? $_GET[$paramName] : $defaultValue;
+        // POSTで$forceがfalseの場合だけ$_POSTから取得
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $force == false) {
+            return isset($_POST[$paramName]) ? $_POST[$paramName] : $defaultValue;
         }
-        return $res;
+        return isset($_GET[$paramName]) ? $_GET[$paramName] : $defaultValue;
     }
 
     /**
@@ -106,7 +103,7 @@ abstract class Peel
     /**
      * リクエストBODY取得
      *
-     * @return string BOSYデータ
+     * @return string BODYデータ
      */
     protected function getBodyData()
     {
@@ -145,6 +142,7 @@ abstract class Peel
     {
         // 改行コードを除去して送信
         if (preg_match('!^status\s*:\s*(\d{3})!i', $headerString, $m)) {
+            // statusヘッダーの場合はレスポンスコードをセットする
             header(str_replace(array("\r", "\n"), '', $headerString), $replace, $m[1]);
         } else {
             header(str_replace(array("\r", "\n"), '', $headerString), $replace);
@@ -164,6 +162,7 @@ abstract class Peel
             $this->sendHeader('Content-Type: application/json; charset=' . DEFAULT_ENCODING);
             break;
         case self::FORMAT_HTML:
+            // breakなし
         default:
             $this->sendHeader('Content-Type: text/html; charset=' . DEFAULT_ENCODING);
         }
@@ -197,6 +196,7 @@ abstract class Peel
             }
             break;
         case self::FORMAT_HTML:
+            // breakなし
         default:
             echo $contents === null
                 ? "<html><head><title>ERROR</title></head><body>{$message}</body></html>"

@@ -17,14 +17,14 @@
 ####実行
   > $fcon->execute();
 
-### コントローラー
+### アクション
 
 #### 設置場所
-- controllerディレクトリ
+- actionディレクトリ
 
 #### 実装
 - Peelクラスを継承
-- 次のいずれかが必要(GET /controller/method/index の場合)
+- 次のいずれかが必要(GET /action/method/index の場合)
   1. getIndex()
   2. execIndex()
   3. execGet()
@@ -37,10 +37,16 @@
 - templateディレクトリ(にinclude_pathが設定されているだけ)
 
 #### 実装
-- 素のPHPで作ってコントローラーからincludeとか
+- 素のPHPで作ってアクションからincludeとか
 
 ### ライブラリ
 
 #### 設置場所
 - libディレクトリ(にinclude_pathが設定されているだけ)
 
+
+変更履歴
+--------
+
+### 2014-10-21.1
+- コントローラーからアクションに変更

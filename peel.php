@@ -6,7 +6,7 @@
  *
  * PHP Version 5
  *
- * @version 2014-09-10.1
+ * @version 2014-10-21.1
  */
 
 // デバッグ用
@@ -24,7 +24,7 @@ if (!defined('DEFAULT_ENCODING')) {
 $root = '.' . DIRECTORY_SEPARATOR;
 $includePath = array(
     "{$root}lib",
-    "{$root}controller",
+    "{$root}action",
     "{$root}template",
     get_include_path()
 );
@@ -230,9 +230,9 @@ abstract class Peel
  */
 class PeelController extends Peel
 {
-    /** デフォルトコントローラーとメソッド */
-    const DEFAULT_CONTROLLER = 'default';
-    const DEFAULT_METHOD     = 'index';
+    /** デフォルトアクションとメソッド */
+    const DEFAULT_ACTION = 'default';
+    const DEFAULT_METHOD = 'index';
 
     /**
      * 実行
@@ -241,22 +241,22 @@ class PeelController extends Peel
      */
     public function execute()
     {
-        // コントローラー名、メソッド名の取得
-        $controllerName = strtolower($this->getPathinfo(1, self::DEFAULT_CONTROLLER));
-        $methodName     = strtolower($this->getPathinfo(2, self::DEFAULT_METHOD));
+        // アクション名、メソッド名の取得
+        $actionName = strtolower($this->getPathinfo(1, self::DEFAULT_ACTION));
+        $methodName = strtolower($this->getPathinfo(2, self::DEFAULT_METHOD));
         // HTTPメソッドの取得
-        $httpMethod     = strtolower($_SERVER['REQUEST_METHOD']);
+        $httpMethod = strtolower($_SERVER['REQUEST_METHOD']);
 
-        // コントローラー名の組み立てと読み込み
-        $controllerClassName = ucfirst($controllerName) . 'Controller';
-        $rc = @include_once "{$controllerName}.php";
-        // コントローラーが見つからない場合は400エラー
-        if ($rc === false || !class_exists($controllerClassName)) {
+        // アクション名の組み立てと読み込み
+        $actionClassName = ucfirst($actionName) . 'Action';
+        $rc = @include_once "{$actionName}.php";
+        // アクションが見つからない場合は400エラー
+        if ($rc === false || !class_exists($actionClassName)) {
             $this->dispError(400, 'Bad Request');
             return false;
         }
         // 出力フォーマットを引き継ぐ
-        $controller = new $controllerClassName($this->format);
+        $action = new $actionClassName($this->format);
 
         // メソッド名の組み立て
         $methods = array(                       // ex. GET /default/index HTTP/1.0
@@ -266,26 +266,26 @@ class PeelController extends Peel
         );
         // メソッドが存在するか確認
         foreach ($methods as $method) {
-            if (method_exists($controller, $method)) {
+            if (method_exists($action, $method)) {
                 break;
             }
         }
         // メソッドが見つからない場合は404エラー
-        if (!method_exists($controller, $method)) {
-            $this->dispError(404, "NotFound({$controllerName}/{$methodName})");
+        if (!method_exists($action, $method)) {
+            $this->dispError(404, "NotFound({$actionName}/{$methodName})");
             return false;
         }
 
         // prepareメソッドが存在する場合は実行
-        $res = method_exists($controller, 'prepare')
-            ? $res = $controller->prepare()
+        $res = method_exists($action, 'prepare')
+            ? $res = $action->prepare()
             : true;
 
         // 目的のメソッドを実行
-        $res = $res && $controller->$method();
+        $res = $res && $action->$method();
 
         // finishメソッドが存在する場合は実行
-        method_exists($controller, 'finish') && $controller->finish();
+        method_exists($action, 'finish') && $action->finish();
 
         // 結果を返す。finishメソッドの結果は無視
         return $res;
@@ -330,14 +330,14 @@ class D
 ####実行
   > $fcon->execute();
 
-### コントローラー
+### アクション
 
 #### 設置場所
-- controllerディレクトリ
+- actionディレクトリ
 
 #### 実装
 - Peelクラスを継承
-- 次のいずれかが必要(GET /controller/method/index の場合)
+- 次のいずれかが必要(GET /action/method/index の場合)
   1. getIndex()
   2. execIndex()
   3. execGet()
@@ -350,10 +350,17 @@ class D
 - templateディレクトリ(にinclude_pathが設定されているだけ)
 
 #### 実装
-- 素のPHPで作ってコントローラーからincludeとか
+- 素のPHPで作ってアクションからincludeとか
 
 ### ライブラリ
 
 #### 設置場所
 - libディレクトリ(にinclude_pathが設定されているだけ)
+
+
+変更履歴
+--------
+
+### 2014-10-21.1
+- コントローラーからアクションに変更
 */

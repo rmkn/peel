@@ -23,8 +23,8 @@
 - actionディレクトリ
 
 #### 実装
-- Peelクラスを継承
-- 次のいずれかが必要(GET /action/method/index の場合)
+- Peelクラスを継承してSampleActionクラスを作成
+- 次のいずれかが必要(GET /sample/index の場合)
   1. getIndex()
   2. execIndex()
   3. execGet()
@@ -50,3 +50,6 @@
 
 ### 2014-10-21.1
 - コントローラーからアクションに変更
+
+### 2014-12-09.1
+- アクションの説明を修正

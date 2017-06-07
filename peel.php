@@ -6,14 +6,14 @@
  *
  * PHP Version 5
  *
- * @version 2014-12-09.1
+ * @version 2017-06-07.1
  */
 
 // デバッグ用
-ini_set('display_errors', '1');
-ini_set('error_log', '');
-ini_set("date.timezone", "Asia/Tokyo");
-error_reporting(E_ALL | E_STRICT);
+//ini_set('display_errors', '1');
+//ini_set('error_log', '');
+//ini_set("date.timezone", "Asia/Tokyo");
+//error_reporting(E_ALL | E_STRICT);
 
 // デフォルトのエンコーディング
 if (!defined('DEFAULT_ENCODING')) {
@@ -41,7 +41,7 @@ abstract class Peel
 
     /** PATH_INFO用 */
     private $pathinf;
-    /** PUTデータ用 */
+    /** BODYデータ用 */
     private $bodyData;
     /** 出力フォーマット */
     protected $format;
@@ -237,15 +237,25 @@ class PeelController extends Peel
     /**
      * 実行
      *
+     * @param bool $methodOverride メソッドの上書きをするか
+     *
      * @return bool 実行結果
      */
-    public function execute()
+    public function execute($methodOverride = false)
     {
         // アクション名、メソッド名の取得
         $actionName = strtolower($this->getPathinfo(1, self::DEFAULT_ACTION));
         $methodName = strtolower($this->getPathinfo(2, self::DEFAULT_METHOD));
         // HTTPメソッドの取得
         $httpMethod = strtolower($_SERVER['REQUEST_METHOD']);
+        // メソッドの上書き対応
+        if ($methodOverride
+            && $httpMethod === 'post'
+            && isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])
+            && preg_match('/^(PUT|DELETE|PATCH)$/i', $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])
+        ) {
+            $httpMethod = strtolower($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']);
+        }
 
         // アクション名の組み立てと読み込み
         $actionClassName = ucfirst($actionName) . 'Action';
@@ -369,4 +379,8 @@ class D
 
 ### 2015-06-09.1
 - .htaccessを追加
+
+### 2017-06-07.1
+- HTTPメソッドの上書き対応
+- 改行コードを変更(CRLF->LF)
 */

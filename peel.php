@@ -337,7 +337,7 @@ class D
   - APIの場合
     > $fcon = new PeelController(Peel::FORMAT_JSON);
 
-####実行
+#### 実行
   > $fcon->execute();
 
 ### アクション

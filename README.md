@@ -14,7 +14,7 @@
   - APIの場合
     > $fcon = new PeelController(Peel::FORMAT_JSON);
 
-####実行
+#### 実行
   > $fcon->execute();
 
 ### アクション
@@ -56,3 +56,12 @@
 
 ### 2015-06-09.1
 - .htaccessを追加
+
+### 2017-06-07.1
+- HTTPメソッドの上書き対応
+- 改行コードを変更(CRLF->LF)
+
+### 2018-01-18.1
+- $_SERVERの直接参照をgetHeader()に変更
+- メソッド上書きに?method追加
+- メソッド上書きのPOST限定を削除

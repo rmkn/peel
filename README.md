@@ -15,7 +15,11 @@
     > $fcon = new PeelController(Peel::FORMAT_JSON);
 
 #### 実行
-  > $fcon->execute();
+  - メソッド上書きなし
+    > $fcon->execute();
+  - メソッド上書きあり
+    > $fcon->execute(true);
+    - メソッドの上書きは _method パラメータか HTTP_X_HTTP_METHOD_OVERRIDE ヘッダ
 
 ### アクション
 
@@ -63,5 +67,5 @@
 
 ### 2018-01-18.1
 - $_SERVERの直接参照をgetHeader()に変更
-- メソッド上書きに?method追加
+- メソッド上書きに_method追加
 - メソッド上書きのPOST限定を削除

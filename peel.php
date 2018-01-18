@@ -6,7 +6,7 @@
  *
  * PHP Version 5
  *
- * @version 2017-06-07.1
+ * @version 2018-01-18.1
  */
 
 // デバッグ用
@@ -62,8 +62,9 @@ abstract class Peel
         // 初期化
         $this->bodyData  = null;
         // PATH_INFOの解析
-        $this->pathinf = isset($_SERVER['PATH_INFO'])
-            ? explode('/', str_replace(array('..', "\r", "\n"), '', $_SERVER['PATH_INFO']))
+        $pi = $this->getHeader('PATH_INFO');
+        $this->pathinf = $pi !== null
+            ? explode('/', str_replace(array('..', "\r", "\n"), '', $pi))
             : array();
     }
 
@@ -79,7 +80,7 @@ abstract class Peel
     protected function getParam($paramName, $defaultValue = null, $force = false)
     {
         // POSTで$forceがfalseの場合だけ$_POSTから取得
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $force == false) {
+        if ($this->getHeader('REQUEST_METHOD') === 'POST' && $force == false) {
             return isset($_POST[$paramName]) ? $_POST[$paramName] : $defaultValue;
         }
         return isset($_GET[$paramName]) ? $_GET[$paramName] : $defaultValue;
@@ -215,9 +216,10 @@ abstract class Peel
     {
         // 相対パスは変換
         if (filter_var($url, FILTER_VALIDATE_URL) === false) {
-            $scheme = isset($_SERVER['HTTPS']) ? 'https' : 'http';
-            $host   = $_SERVER['SERVER_NAME'];
-            $port   = $_SERVER['SERVER_PORT'] === '80' ? '' : ":{$_SERVER['SERVER_PORT']}";
+            $scheme = $this->getHeader('HTTPS') !== null ? 'https' : 'http';
+            $host   = $this->getHeader('SERVER_NAME');
+            $p      = $this->getHeader('SERVER_PORT', '80');
+            $port   = $p === '80' ? '' : ":{$p}";
             $url    = "{$scheme}://{$host}{$port}{$url}";
         }
         $this->sendHeader('Status: 302', true, 302); // 303 See Other ? 307 Temporary Redirect ?
@@ -247,15 +249,13 @@ class PeelController extends Peel
         $actionName = strtolower($this->getPathinfo(1, self::DEFAULT_ACTION));
         $methodName = strtolower($this->getPathinfo(2, self::DEFAULT_METHOD));
         // HTTPメソッドの取得
-        $httpMethod = strtolower($_SERVER['REQUEST_METHOD']);
+        $hm = $this->getHeader('REQUEST_METHOD');
         // メソッドの上書き対応
-        if ($methodOverride
-            && $httpMethod === 'post'
-            && isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])
-            && preg_match('/^(PUT|DELETE|PATCH)$/i', $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])
-        ) {
-            $httpMethod = strtolower($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']);
+        if ($methodOverride) {
+            $om = $this->getHeader('HTTP_X_HTTP_METHOD_OVERRIDE', $this->getParam('_method'));
+            $hm = preg_match('/^(PUT|DELETE|PATCH)$/i', $om) ? $om : $hm;
         }
+        $httpMethod = strtolower($hm);
 
         // アクション名の組み立てと読み込み
         $actionClassName = ucfirst($actionName) . 'Action';
@@ -383,4 +383,9 @@ class D
 ### 2017-06-07.1
 - HTTPメソッドの上書き対応
 - 改行コードを変更(CRLF->LF)
+
+### 2018-01-18.1
+- $_SERVERの直接参照をgetHeader()に変更
+- メソッド上書きに?method追加
+- メソッド上書きのPOST限定を削除
 */

@@ -31,13 +31,13 @@ class DocAction extends Peel
         $apis = $this->getActionList();
         $md[] = "|API名|説明|\n|:---|:---|";
         foreach ($apis as $api) {
-            $buf     = $this->parse($api);
-            $comment = isset($buf['comment'])
-                     ? array_shift(explode("\n", $buf['comment'])) // APIのコメントの先頭行のみ
-                     : '';
-            $md[]    = sprintf('|[%s](desc?api=%s)|%s|', $api, $api, $comment);
+            $data    = $this->parse($api);
+            $comment = isset($data['comment'])
+                     ? explode("\n", $data['comment']) // APIの説明の先頭行のみ
+                     : array();
+            $md[]    = sprintf('|[%s](desc?api=%s)|%s|', $api, $api, array_shift($comment));
         }
-        $this->output(implode("\n", $md));
+        $this->output($md);
         return true;
     }
 
@@ -51,32 +51,54 @@ class DocAction extends Peel
         $api = $this->getParam('api', null); // API名
         $md  = array("# {$api}");
         if ($api !== null) {
-            $buf  = $this->parse($api);
-            // APIのコメント
-            $md[] = preg_replace("!\n!", "  \n", isset($buf['comment']) ? $buf['comment'] : '');
+            $data  = $this->parse($api);
+            // APIの説明
+            $md[] = preg_replace("!\n!", "  \n", isset($data['comment']) ? $data['comment'] : '');
             // コマンド表示
-            $commands = isset($buf['commands']) ? $buf['commands'] : null;
+            $md[] = "\n## コマンド";
+            $commands = isset($data['commands']) ? $data['commands'] : null;
             foreach ($commands as $cmd) {
-                // コメントの先頭行をタイトルにする
+                // 説明の先頭行をタイトルにする
                 $buf   = explode("\n", $cmd['comment']);
                 $title = array_shift($buf);
                 if (!empty($title)) {
-                    $md[] = "\n- - -\n## {$title}";
+                    $md[] = "\n### {$title}";
                     $md[] = implode("  \n", $buf) . "\n";
                 }
                 // HTTPメソッドとパス
-                $md[] = sprintf("```\n%s %s%s\n```",
+                $md[] = sprintf("```\n%s %s%s/%s\n```",
                             $cmd['method'],
-                            preg_replace('!/[^/]+$!', '/', $_SERVER['SCRIPT_URL']),
+                            preg_replace('!/[^/]+\/[^/]+$!', '/', $_SERVER['SCRIPT_URL']),
+                            $api,
                             $cmd['name']
                         );
                 // パラメータ
                 if (!empty($cmd['param'])) {
-                    $md[] = "\n|パラメータ|説明|\n|:---|:---|";
+                    $md[] = "\n|パラメータ|デフォルト|説明|\n|:--|:--|:--|";
                     foreach ($cmd['param'] as $param) {
-                        $md[] = isset($param['name'])
-                              ? sprintf('|%s:%s|%s|', $param['source'], $param['name'], $param['comment']) // パラメータ
-                              : sprintf('|%s|%s|', $param['source'], $param['comment']);  // PATHINFO
+                        switch ($param['source']) {
+                        case 'Param':
+                            $md[] = sprintf('|%s|%s|%s|',
+                                        $param['name'],
+                                        $param['default'],
+                                        $param['comment']
+                                    );
+                            break;
+                        case 'Pathinfo':
+                            $md[] = sprintf('|%s:%s|%s|%s|',
+                                        $param['source'],
+                                        $param['name'],
+                                        $param['default'],
+                                        $param['comment']
+                                    );
+                            break;
+                        case 'BodyData':
+                            $md[] = sprintf('|%s||%s|',
+                                        $param['source'],
+                                        $param['comment']
+                                    );
+                            break;
+                        }
                     }
                 }
                 // 追加情報
@@ -84,8 +106,12 @@ class DocAction extends Peel
                     $md[] = "\n{$cmd['info']}";
                 }
             }
-
-            $this->output(implode("\n", $md));
+            // APIの追加情報
+            if (isset($data['info'])) {
+                $md[] = '';
+                $md[] = preg_replace("!\n!", "  \n", $data['info']);
+            }
+            $this->output($md);
         }
         return true;
     }
@@ -137,10 +163,16 @@ class DocAction extends Peel
                 $l = rtrim($line, "\r\n");
                 switch ($blockType) {
                 case 'comment_data':
-                    if (preg_match('!\s+\*/|\s+\*\s*$!', $l)) {
-                        // コメント終端か空行で終了
+                    if (preg_match('!\s+\*/$!', $l)) {
+                        // コメント終端で終了
                         $tmp[]     = $block;
                         $blockType = null;
+                    } elseif (
+                        preg_match('!\s+\*\s*\@!', $l)
+                        || preg_match('!\s+\*\s*$!', $l)
+                    ) {
+                        // @で始まるか空行はスキップ
+                        continue;
                     } else {
                         // 先頭の*を除去
                         $block['data'][] = preg_replace('!^\s+\*\s?!', '', $l);
@@ -154,22 +186,40 @@ class DocAction extends Peel
                         // {}が全て閉じたので終了
                         $tmp[]     = $block;
                         $blockType = null;
-                    } elseif (preg_match('!get(?<source>Param|Pathinfo)\([\'"]?(?<name>[^\'",]+)(?:.*//(?<comment>.*))?!', $l, $m)) {
+                    } elseif (preg_match('!get(?<source>Param|Pathinfo)\((?<name>[^,]+)(,(?<default>.*))?\)(?:.*//(?<comment>.*))?!', $l, $m)) {
                         // パラメータの取得部分
-                        $block['param'][] = array('source' => $m['source'], 'name' => $m['name'], 'comment' => $m['comment']);
+                        $block['param'][] = array(
+                            'source'  => $m['source'],
+                            'name'    => trim($m['name'], ' "\','),
+                            'default' => trim($m['default'], ' "\','),
+                            'comment' => isset($m['comment']) ? $m['comment'] : ''
+                        );
                     } elseif (preg_match('!get(?<source>BodyData)(?:.*//(?<comment>.*))?!', $l, $m)) {
                         // データの取得部分
-                        $block['param'][] = array('source' => $m['source'], 'comment' => $m['comment']);
-                    } elseif ($buf === null && preg_match('!/\*\*\*!', $l)) {
-                        // /*** は補足情報開始行
+                        $block['param'][] = array(
+                            'source' => $m['source'],
+                            'comment' => isset($m['comment']) ? $m['comment'] : ''
+                        );
+                    } elseif ($buf === null && preg_match('!/\*\*\*$!', $l)) {
+                        // /*** は追加情報開始行
                         $buf = array();
-                        continue;
-                    } elseif ($buf !== null && preg_match('!\*\*\*/!', $l)) {
-                        // ***/ は補足情報終了行
-                        $block['info'] = preg_replace('!^\s*\*\s!', '', $buf);
+                    } elseif ($buf !== null && preg_match('!\*\*\*/$!', $l)) {
+                        // ***/ は追加情報終了行
+                        $block['info'] = $buf;
                         $buf           = null;
                     } elseif ($buf !== null) {
-                        $buf[] = $l;
+                        // 追加情報行。先頭の*を除去
+                        $buf[] = preg_replace('!^\s+\*\s?!', '', $l);
+                    }
+                    break;
+                case 'info_data':
+                    if (preg_match('!^\*\*\*/$!', $l)) {
+                        // ***/ はAPIの追加情報終了行
+                        $tmp[]     = $block;
+                        $blockType = null;
+                    } else {
+                        // 先頭の*を除去
+                        $block['data'][] = preg_replace('!^\s+\*\s?!', '', $l);
                     }
                     break;
                 default:
@@ -188,12 +238,14 @@ class DocAction extends Peel
                         $block     = array('type' => $blockType);
                         $buf       = null;
                         $braceCnt  = preg_match_all('/\{/', $l);
-                        continue;
-                    } elseif (preg_match('!(?<indent>^|\s+)/\*\*!', $l, $m)) {
+                    } elseif (preg_match('!^/\*\*\*$!', $l)) {
+                        // /*** は追加情報の開始行
+                        $blockType = 'info_data';
+                        $block     = array('type' => $blockType);
+                    } elseif (preg_match('!(?<indent>^|\s+)/\*\*$!', $l, $m)) {
                         // インデントがないコメントはAPIの説明、インデントがあるコメントはコマンドの説明
                         $blockType = 'comment_data';
                         $block     = array('type' => strlen($m['indent']) == 0 ? 'global_comment' : 'function_comment');
-                        continue;
                     }
                 }
             }
@@ -219,6 +271,9 @@ class DocAction extends Peel
                                ? implode("\n", $tmp[$i + 1]['info'])
                                : null,
                 );
+            } elseif ($tmp[$i]['type'] === 'info_data') {
+                // APIの追加情報
+                $res['info'] = implode("\n", $tmp[$i]['data']);
             }
         }
         return $res;
@@ -227,14 +282,16 @@ class DocAction extends Peel
     /**
      * 画面出力
      *
-     * @param string $md マークダウン
+     * @param mixed $md マークダウン
      *
      * @return void
      */
     private function output($md)
     {
+        $txt = is_array($md) ? implode("\n", $md) : $md;
+        $arr = is_array($md) ? $md : explode("\n", $md);
         $title = 'no title';
-        foreach (explode("\n", $md) as $l) {
+        foreach ($arr as $l) {
             if (preg_match('!^# (?<title>.+)!', $l, $m)) {
                 $title = $m['title'];
                 break;
@@ -249,7 +306,7 @@ class DocAction extends Peel
 </head>
 <body>
   <xmp theme="{$this->theme}" style="display:none;">
-{$md}
+{$txt}
   </xmp>
   <script src="//strapdownjs.com/v/0.2/strapdown.js"></script>
 </body>

@@ -68,7 +68,7 @@ class DocAction extends Peel
                 // HTTPメソッドとパス
                 $md[] = sprintf("```\n%s %s%s/%s\n```",
                             $cmd['method'],
-                            preg_replace('!/[^/]+\/[^/]+$!', '/', $_SERVER['SCRIPT_URL']),
+                            preg_replace('!/doc/.+$!', '/', $_SERVER['REQUEST_URI']),
                             $api,
                             $cmd['name']
                         );
@@ -191,7 +191,7 @@ class DocAction extends Peel
                         $block['param'][] = array(
                             'source'  => $m['source'],
                             'name'    => trim($m['name'], ' "\','),
-                            'default' => trim($m['default'], ' "\','),
+                            'default' => isset($m['default']) ? trim($m['default'], ' "\',') : '',
                             'comment' => isset($m['comment']) ? $m['comment'] : ''
                         );
                     } elseif (preg_match('!get(?<source>BodyData)(?:.*//(?<comment>.*))?!', $l, $m)) {

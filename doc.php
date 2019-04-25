@@ -48,7 +48,7 @@ class DocAction extends Peel
      */
     public function getDesc()
     {
-        $api = $this->getParam('api', null); // API名
+        $api = $this->getParam('api', null); // [req] API名
         $md  = array("# {$api}");
         if ($api !== null) {
             $data  = $this->parse($api);

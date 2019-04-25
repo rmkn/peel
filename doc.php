@@ -132,7 +132,7 @@ class DocAction extends Peel
      */
     private function parseComment($s)
     {
-        if (preg_match('/(?<required>\[(?:req(?:uired)?|必須)\])?(?:\(fo?r?ma?t:(?<format>[^)]+)\))?(?<comment>.*)$/', $s, $m)) {
+        if (preg_match('/(?<required>\[(?:req(?:uired)?|必須)\])?\s*(?:\(fo?r?ma?t:(?<format>[^)]+)\))?\s*(?<comment>.*)$/', $s, $m)) {
             return $m;
         } else {
             return array('required' => null, 'format' => null, 'comment' => $s);

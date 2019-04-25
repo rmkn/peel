@@ -74,7 +74,7 @@ class DocAction extends Peel
                         );
                 // パラメータ
                 if (!empty($cmd['param'])) {
-                    $md[] = "\n|パラメータ|デフォルト|説明|\n|:--|:--|:--|";
+                    $md[] = "\n|パラメータ|フォーマット|デフォルト|必須|説明|\n|:--|:--|:--|:--|:--|";
                     foreach ($cmd['param'] as $param) {
                         $cmt = isset($param['comment']) ? $this->parseComment($param['comment']) : null;
                         switch ($param['source']) {
@@ -132,7 +132,7 @@ class DocAction extends Peel
      */
     private function parseComment($s)
     {
-        if (preg_match('/(?<required>\[(?:req(?:uired)?|必須)\])?(?:\[fo?r?ma?t:(?<format>[^\]]+)\])?(?<comment>.*$)/', $s, $m)) {
+        if (preg_match('/(?<required>\[(?:req(?:uired)?|必須)\])?(?:\(fo?r?ma?t:(?<format>[^)]+)\))?(?<comment>.*)$/', $s, $m)) {
             return $m;
         } else {
             return array('required' => null, 'format' => null, 'comment' => $s);
@@ -209,7 +209,7 @@ class DocAction extends Peel
                         // {}が全て閉じたので終了
                         $tmp[]     = $block;
                         $blockType = null;
-                    } elseif (preg_match('!get(?<custom>.*)(?<source>Param|Pathinfo)\((?<name>[^,]+)(,(?<default>.*))?\)(?:.*//\s*(?<comment>.*))?!', $l, $m)) {
+                    } elseif (preg_match('!get(?<custom>.*)(?<source>Param|Pathinfo)\((?<name>[^,)]+)(,(?<default>[^)]+))?\)(?:.*//\s*(?<comment>.*))?!', $l, $m)) {
                         // パラメータの取得部分
                         $block['param'][] = array(
                             'source'  => $m['source'],

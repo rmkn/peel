@@ -76,26 +76,33 @@ class DocAction extends Peel
                 if (!empty($cmd['param'])) {
                     $md[] = "\n|パラメータ|デフォルト|説明|\n|:--|:--|:--|";
                     foreach ($cmd['param'] as $param) {
+                        $cmt = isset($param['comment']) ? $this->parseComment($param['comment']) : null;
                         switch ($param['source']) {
                         case 'Param':
-                            $md[] = sprintf('|%s|%s|%s|',
+                            $md[] = sprintf('|%s|%s|%s|%s|%s|',
                                         $param['name'],
+                                        $cmt['format'],
                                         $param['default'],
-                                        $param['comment']
+                                        !empty($cmt['required']) ? '○' : '',
+                                        $cmt['comment']
                                     );
                             break;
                         case 'Pathinfo':
-                            $md[] = sprintf('|%s:%s|%s|%s|',
+                            $md[] = sprintf('|%s:%s|%s|%s|%s|%s|',
                                         $param['source'],
                                         $param['name'],
+                                        $cmt['format'],
                                         $param['default'],
-                                        $param['comment']
+                                        !empty($cmt['required']) ? '○' : '',
+                                        $cmt['comment']
                                     );
                             break;
                         case 'BodyData':
-                            $md[] = sprintf('|%s||%s|',
+                            $md[] = sprintf('|%s|%s||%s|%s|',
                                         $param['source'],
-                                        $param['comment']
+                                        $cmt['format'],
+                                        !empty($cmt['required']) ? '○' : '',
+                                        $cmt['comment']
                                     );
                             break;
                         }
@@ -114,6 +121,22 @@ class DocAction extends Peel
             $this->output($md);
         }
         return true;
+    }
+
+    /**
+     * コメントから必須/フォーマット指定を切り出す
+     *
+     * @param string $s コメント
+     *
+     * @return array 切り出した結果
+     */
+    private function parseComment($s)
+    {
+        if (preg_match('/(?<required>\[(?:req(?:uired)?|必須)\])?(?:\[fo?r?ma?t:(?<format>[^\]]+)\])?(?<comment>.*$)/', $s, $m)) {
+            return $m;
+        } else {
+            return array('required' => null, 'format' => null, 'comment' => $s);
+        }
     }
 
     /**
@@ -186,15 +209,16 @@ class DocAction extends Peel
                         // {}が全て閉じたので終了
                         $tmp[]     = $block;
                         $blockType = null;
-                    } elseif (preg_match('!get(?<source>Param|Pathinfo)\((?<name>[^,]+)(,(?<default>.*))?\)(?:.*//(?<comment>.*))?!', $l, $m)) {
+                    } elseif (preg_match('!get(?<custom>.*)(?<source>Param|Pathinfo)\((?<name>[^,]+)(,(?<default>.*))?\)(?:.*//\s*(?<comment>.*))?!', $l, $m)) {
                         // パラメータの取得部分
                         $block['param'][] = array(
                             'source'  => $m['source'],
                             'name'    => trim($m['name'], ' "\','),
                             'default' => isset($m['default']) ? trim($m['default'], ' "\',') : '',
-                            'comment' => isset($m['comment']) ? $m['comment'] : ''
+                            'comment' => isset($m['comment']) ? $m['comment'] : '',
+                            'custom'  => isset($m['custom'])  ? $m['custom'] : '',
                         );
-                    } elseif (preg_match('!get(?<source>BodyData)(?:.*//(?<comment>.*))?!', $l, $m)) {
+                    } elseif (preg_match('!get(?<source>BodyData)(?:.*//\s*(?<comment>.*))?!', $l, $m)) {
                         // データの取得部分
                         $block['param'][] = array(
                             'source' => $m['source'],

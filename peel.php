@@ -4,9 +4,7 @@
 /**
  * フレームワーク的なもの
  *
- * PHP Version 5
- *
- * @version 2018-01-18.1
+ * @version 2022-06-07.1
  */
 
 // デバッグ用
@@ -123,12 +121,15 @@ abstract class Peel
      *
      * @param string $headerKey    ヘッダ名
      * @param string $defaultValue デフォルト値
+     * @param string $filter       フィルタ
      *
-     * @return string ヘッダの値。存在しない場合はデフォルト値
+     * @return string ヘッダの値。存在しない場合やフィルタに一致しない場合はデフォルト値
      */
-    protected function getHeader($headerName, $defaultValue = null)
+    protected function getHeader($headerName, $defaultValue = null, $filter = '/./')
     {
-        return isset($_SERVER[$headerName]) ? $_SERVER[$headerName] : $defaultValue;
+        return (isset($_SERVER[$headerName]) && preg_match($filter, $_SERVER[$headerName]))
+            ? $_SERVER[$headerName]
+            : $defaultValue;
     }
 
     /**
@@ -182,7 +183,7 @@ abstract class Peel
     {
         // HTTPステータス
         $message = sprintf('%d %s', is_numeric($errorCode) ? $errorCode : 500, $errorMessage);
-        $this->sendHeader("Status: {$message}", true, $errorCode);
+        $this->sendHeader("Status: {$message}", true);
         // Content-Type
         $this->sendContentType();
         // レスポンスボディ部。未指定の場合はデフォルトデータを出力
@@ -216,13 +217,12 @@ abstract class Peel
     {
         // 相対パスは変換
         if (filter_var($url, FILTER_VALIDATE_URL) === false) {
-            $scheme = $this->getHeader('HTTPS') !== null ? 'https' : 'http';
-            $host   = $this->getHeader('SERVER_NAME');
-            $p      = $this->getHeader('SERVER_PORT', '80');
-            $port   = $p === '80' ? '' : ":{$p}";
+            $scheme = $this->getHeader('HTTPS', null, '/^on$/') !== null ? 'https' : 'http';
+            $host   = $this->getHeader('SERVER_NAME', '', '/^[a-z0-9.-]+$/');
+            $pot    = $this->getHeader('SERVER_PORT', '80', '/^\d+$/') === '80' ? '' : ":{$p}";
             $url    = "{$scheme}://{$host}{$port}{$url}";
         }
-        $this->sendHeader('Status: 302', true, 302); // 303 See Other ? 307 Temporary Redirect ?
+        $this->sendHeader('Status: 302', true); // 303 See Other ? 307 Temporary Redirect ?
         $this->sendHeader("Location: " . filter_var($url, FILTER_SANITIZE_URL));
     }
 }
@@ -249,10 +249,10 @@ class PeelController extends Peel
         $actionName = strtolower($this->getPathinfo(1, self::DEFAULT_ACTION));
         $methodName = strtolower($this->getPathinfo(2, self::DEFAULT_METHOD));
         // HTTPメソッドの取得
-        $hm = $this->getHeader('REQUEST_METHOD');
+        $hm = $this->getHeader('REQUEST_METHOD', 'GET', '/^(GET|POST|PUT|DELETE)$/');
         // メソッドの上書き対応
         if ($methodOverride) {
-            $om = $this->getHeader('HTTP_X_HTTP_METHOD_OVERRIDE', $this->getParam('_method'));
+            $om = $this->getHeader('HTTP_X_HTTP_METHOD_OVERRIDE', $this->getParam('_method'), '/^(PUT|DELETE|PATCH)$/i');
             $hm = preg_match('/^(PUT|DELETE|PATCH)$/i', $om) ? $om : $hm;
         }
         $httpMethod = strtolower($hm);
@@ -370,26 +370,4 @@ class D
 
 #### 設置場所
 - libディレクトリ(にinclude_pathが設定されているだけ)
-
-
-変更履歴
---------
-
-### 2014-10-21.1
-- コントローラーからアクションに変更
-
-### 2014-12-09.1
-- アクションの説明を修正
-
-### 2015-06-09.1
-- .htaccessを追加
-
-### 2017-06-07.1
-- HTTPメソッドの上書き対応
-- 改行コードを変更(CRLF->LF)
-
-### 2018-01-18.1
-- $_SERVERの直接参照をgetHeader()に変更
-- メソッド上書きに_method追加
-- メソッド上書きのPOST限定を削除
 */

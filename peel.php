@@ -4,7 +4,7 @@
 /**
  * フレームワーク的なもの
  *
- * @version 2022-06-07.1
+ * @version 2022-06-21.1
  */
 
 // デバッグ用
@@ -72,16 +72,21 @@ abstract class Peel
      * @param string $paramName    パラメータ名
      * @param string $defaultValue デフォルト値
      * @param string $force        POST時にQUERY_STRINGから取得する場合はtrue
+     * @param string $filter       フィルタ
      *
      * @return string パラメータ値。存在しない場合はデフォルト値
      */
-    protected function getParam($paramName, $defaultValue = null, $force = false)
+    protected function getParam($paramName, $defaultValue = null, $force = false, $filter = '/./')
     {
         // POSTで$forceがfalseの場合だけ$_POSTから取得
         if ($this->getHeader('REQUEST_METHOD') === 'POST' && $force == false) {
-            return isset($_POST[$paramName]) ? $_POST[$paramName] : $defaultValue;
+            return (isset($_POST[$paramName]) && preg_match($filter, $_POST[$paramName]))
+                ? $_POST[$paramName]
+                : $defaultValue;
         }
-        return isset($_GET[$paramName]) ? $_GET[$paramName] : $defaultValue;
+        return (isset($_GET[$paramName]) && preg_match($filter, $_GET[$paramName]))
+            ? $_GET[$paramName]
+            : $defaultValue;
     }
 
     /**
@@ -89,12 +94,13 @@ abstract class Peel
      *
      * @param int    $index   取得するインデックス
      * @param string $default デフォルト値
+     * @param string $filter  フィルタ
      *
      * @return string PATH_INFOの値。存在しないか空の場合はデフォルト値
      */
-    protected function getPathinfo($index, $default = null)
+    protected function getPathinfo($index, $default = null, $filter = '/./')
     {
-        return (isset($this->pathinf[$index]) && !empty($this->pathinf[$index]))
+        return (isset($this->pathinf[$index]) && !empty($this->pathinf[$index]) && preg_match($filter, $this->pathinf[$index]))
             ? $this->pathinf[$index]
             : $default;
     }
